@@ -28,6 +28,11 @@ A Neovim plugin for seamless environment variable integration and management. Pr
 - [Custom Providers](#-custom-providers)
 - [Shelter Mode](#-shelter-mode)
 - [Type System](#-ecolog-types)
+- [Environment Presets](#-environment-presets)
+  - [Configuration](#preset-configuration)
+  - [Commands](#preset-commands)
+  - [UI Usage](#preset-ui-usage)
+  - [Best Practices](#preset-best-practices)
 - [Tips](#-tips)
 - [Theme Integration](#-theme-integration)
 - [Author Setup](#️-personal-setup)
@@ -145,8 +150,6 @@ If you use `blink.cmp` see [Blink-cmp Integration guide](#blink-cmp-integration)
 
 ### Available Commands
 
-### Available Commands
-
 | Command                                    | Description                                                               |
 | ------------------------------------------ | ------------------------------------------------------------------------- |
 | `:EcologPeek [variable_name]`              | Peek at environment variable value and metadata                           |
@@ -158,17 +161,12 @@ If you use `blink.cmp` see [Blink-cmp Integration guide](#blink-cmp-integration)
 | `:EcologGotoVar [variable_name]`           | Go to specific variable definition in env file with variable under cursor |
 | `:EcologShelterToggle [command] [feature]` | Control shelter mode for masking sensitive values                         |
 | `:EcologShelterLinePeek`                   | Temporarily reveal value on current line in env file                      |
+| `:EcologPresets`                           | Open the preset management UI                                             |
+| `:EcologPresetCreate <name>`               | Create a preset from current env file                                     |
+| `:EcologPresetValidate <name>`             | Validate current env file against a preset                                |
 | `:Telescope ecolog env`                    | Alternative way to open Telescope picker                                  |
 
 ### 📝 Environment File Priority
-
-Files are loaded in the following priority order:
-
-1. `.env.{preferred_environment}` (if preferred_environment is set)
-2. `.env`
-3. Other `.env.*` files (alphabetically)
-
-## 🔌 Environment File Priority
 
 Files are loaded in the following priority order:
 
@@ -791,6 +789,63 @@ REGION=us-east-1               # Will be detected as aws_region type
 AUTH_TOKEN=eyJhbG.eyJzd.iOiJ  # Will be detected as jwt type
 ```
 
+## 💡 Environment Presets
+
+> ⚠️ **Warning**: The presets feature is currently in active development (highly WIP). Some functionality may be unstable or subject to change. Please report any issues you encounter.
+
+Environment presets allow you to save and validate environment variable configurations. This helps ensure consistency across different environments.
+
+### Preset Configuration
+
+The presets module is enabled by default. You can configure it in your setup:
+
+```lua
+require('ecolog').setup({
+  presets = true, -- Enable presets module (default)
+  presets_file = vim.fn.stdpath("config") .. "/ecolog_presets.json", -- Optional: customize presets file location
+})
+```
+
+### Preset Commands
+
+| Command                        | Description                                |
+| ------------------------------ | ------------------------------------------ |
+| `:EcologPresets`               | Open the preset management UI              |
+| `:EcologPresetCreate <name>`   | Create a preset from current env file      |
+| `:EcologPresetValidate <name>` | Validate current env file against a preset |
+
+### Preset UI Usage
+
+The preset management interface provides an intuitive way to manage your environment presets:
+
+#### List View
+
+Shows all available presets with their variable counts. Available actions:
+
+- `<CR>` - Edit selected preset
+- `c` - Create a new preset from current env file
+- `d` - Delete selected preset
+- `v` - Validate current env file against selected preset
+- `u` - Update selected preset from current env file
+- `q` - Close window
+
+#### Edit View
+
+Provides a form-like interface to edit preset variables. Each variable shows:
+
+- Type
+- Required status
+
+Navigation:
+
+- `h/j/k/l` - Move between cells
+- `Enter` - Edit current cell
+- `Space` - Toggle required status
+- `w` - Save changes
+- `a` - Add new variable
+- `d` - Delete current variable
+- `q` - Close window
+
 ## 💡 Tips
 
 1. **Selective Protection**: Enable shelter mode only for sensitive environments:
@@ -909,5 +964,5 @@ MIT License - See [LICENSE](./LICENSE) for details.
 ---
 
 <div align="center">
-Made with ❤️ by <a href="https://github.com/philosofonusus">TENTACLE</a>
+Made with ️ by <a href="https://github.com/philosofonusus">TENTACLE</a>
 </div>

@@ -6,6 +6,7 @@
 ---@field custom_types table Custom type definitions
 ---@field preferred_environment string Preferred environment name
 ---@field load_shell LoadShellConfig Shell variables loading configuration
+---@field presets boolean Enable presets module (default: true)
 
 ---@class ShelterConfig
 ---@field configuration ShelterConfiguration Configuration for shelter mode
@@ -83,6 +84,74 @@ local cached_env_files = nil
 local last_opts = nil
 local current_watcher_group = nil
 local selected_env_file = nil
+
+-- Create preset from current env file
+function M.create_preset(name)
+  local config = M.get_config()
+  if not config or not config.presets then
+    vim.notify("Presets module is disabled. Enable it in your configuration with `presets = true`.", vim.log.levels.ERROR)
+    return false
+  end
+
+  if not selected_env_file then
+    vim.notify("No env file selected", vim.log.levels.ERROR)
+    return false
+  end
+  local presets = require("ecolog.presets")
+  return presets.create_preset_from_file(name, selected_env_file)
+end
+
+-- Validate current env file against preset
+function M.validate_against_preset(preset_name)
+  local config = M.get_config()
+  if not config or not config.presets then
+    vim.notify("Presets module is disabled. Enable it in your configuration with `presets = true`.", vim.log.levels.ERROR)
+    return {}
+  end
+
+  if not selected_env_file then
+    vim.notify("No env file selected", vim.log.levels.ERROR)
+    return {}
+  end
+  local presets = require("ecolog.presets")
+  return presets.validate_env_file(selected_env_file, preset_name)
+end
+
+-- List all available presets
+function M.list_presets()
+  local config = M.get_config()
+  if not config or not config.presets then
+    vim.notify("Presets module is disabled. Enable it in your configuration with `presets = true`.", vim.log.levels.ERROR)
+    return {}
+  end
+
+  local presets = require("ecolog.presets")
+  return presets.list_presets()
+end
+
+-- Delete a preset
+function M.delete_preset(name)
+  local config = M.get_config()
+  if not config or not config.presets then
+    vim.notify("Presets module is disabled. Enable it in your configuration with `presets = true`.", vim.log.levels.ERROR)
+    return false
+  end
+
+  local presets = require("ecolog.presets")
+  return presets.delete_preset(name)
+end
+
+-- Update preset variable properties
+function M.update_preset_variable(preset_name, var_name, properties)
+  local config = M.get_config()
+  if not config or not config.presets then
+    vim.notify("Presets module is disabled. Enable it in your configuration with `presets = true`.", vim.log.levels.ERROR)
+    return false
+  end
+
+  local presets = require("ecolog.presets")
+  return presets.update_preset_variable(preset_name, var_name, properties)
+end
 
 -- Find environment files for selection
 local function find_env_files(opts)
@@ -383,6 +452,8 @@ function M.setup(opts)
       filter = nil,
       transform = nil,
     },
+    presets = false,
+    presets_file = vim.fn.stdpath("config") .. "/ecolog_presets.json", -- Optional: customize presets file location
   }, opts or {})
 
   -- If blink_cmp is enabled, disable nvim_cmp to avoid conflicts
@@ -660,9 +731,63 @@ function M.setup(opts)
     },
   }
 
+  -- Add preset commands only if presets module is enabled
+  if opts.presets then
+    -- Lazy load presets module
+    local presets = require("ecolog.presets")
+    
+    commands.EcologPresets = {
+      callback = function()
+        require("ecolog.ui.presets").toggle(selected_env_file)
+      end,
+      desc = "Toggle preset management UI",
+    }
+    commands.EcologPresetCreate = {
+      callback = function(args)
+        if args.args and #args.args > 0 then
+          if M.create_preset(args.args) then
+            notify("Preset created successfully", vim.log.levels.INFO)
+          end
+        else
+          notify("Please provide a preset name", vim.log.levels.ERROR)
+        end
+      end,
+      nargs = 1,
+      desc = "Create a preset from current env file",
+    }
+    commands.EcologPresetValidate = {
+      callback = function(args)
+        if args.args and #args.args > 0 then
+          local errors = M.validate_against_preset(args.args)
+          if not next(errors) then
+            notify("Environment file is valid!", vim.log.levels.INFO)
+          else
+            local error_lines = { "Validation errors:" }
+            for var_name, error_msg in pairs(errors) do
+              table.insert(error_lines, string.format("• %s: %s", var_name, error_msg))
+            end
+            notify(table.concat(error_lines, "\n"), vim.log.levels.ERROR)
+          end
+        else
+          notify("Please provide a preset name", vim.log.levels.ERROR)
+        end
+      end,
+      nargs = 1,
+      desc = "Validate current env file against a preset",
+      complete = function(arglead)
+        local preset_list = M.list_presets()
+        local names = vim.tbl_keys(preset_list)
+        return vim.tbl_filter(function(name)
+          return name:lower():match("^" .. arglead:lower())
+        end, names)
+      end,
+    }
+  end
+
+  -- Register commands
   for name, cmd in pairs(commands) do
     api.nvim_create_user_command(name, cmd.callback, {
-      nargs = cmd.nargs,
+      nargs = cmd.nargs or 0,
       desc = cmd.desc,
       complete = cmd.complete,
     })
@@ -703,7 +828,13 @@ function M.get_config()
       filter = nil,
       transform = nil,
     },
+    presets = true,
   }
+end
+
+-- Add this function to get the selected env file
+function M.get_selected_env_file()
+  return selected_env_file
 end
 
 return M
